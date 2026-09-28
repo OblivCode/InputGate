@@ -1,0 +1,21 @@
+[project]
+name = "inputgate"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "OblivCode" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "evdev>=1.9.3",
+]
+
+[project.scripts]
+inputgate = "inputgate:main"
+
+[build-system]
+requires = ["uv_build>=0.10.3,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv.build]
+packages = ["src/inputgate"]
