@@ -114,6 +114,31 @@ def groupDevices(devices: list[InputDevice]) -> list[InputDeviceGroup]:
 
 
 
+def filterDevices(groups: list[InputDeviceGroup]) -> list[InputDeviceGroup]:
+    """
+    Filters device groups to include only input peripherals.
+    """
+    filtered: list[InputDeviceGroup] = []
+
+    for group in groups:
+        # Check if any device in the group matches peripheral keywords
+        is_peripheral = False
+        for device in group.devices:
+            name_lower = device.name.lower()
+            for keyword in PERIPHERAL_KEYWORDS:
+                if keyword in name_lower:
+                    is_peripheral = True
+                    break
+            if is_peripheral:
+                break
+
+        # If it is a peripheral, keep the group
+        if is_peripheral:
+            filtered.append(group)
+
+    return filtered
+
+
 def getDevices() -> list[InputDeviceGroup]:
     """
     Returns a list of all input devices grouped by physical port.
@@ -122,5 +147,8 @@ def getDevices() -> list[InputDeviceGroup]:
     all_devices: list[InputDevice] = scanInputDevices()
     # Group input devices by physical port
     devices: list[InputDeviceGroup] = groupDevices(all_devices)
-    return devices
+    # Filter input device groups for peripherals
+    filtered_devices: list[InputDeviceGroup] = filterDevices(devices)
+    return filtered_devices
+
     

@@ -124,3 +124,27 @@ Running it on my machine returned clean, deduplicated physical peripherals in mi
 Device Group: Turtle Beach Kone II Air Dongle
 Device Group: Logitech Gaming Keyboard G213
 ```
+
+## Bridging to the UI
+
+Once the grouping logic was working in a quick script, I needed to turn it into an actual application. The goal was a desktop app that anyone could open and be understood at a glance.
+
+That brought up two immediate challenges: how to structure the UI design, and how to get data from Linux kernel space into a react frontend.
+
+### Splitting the responsibilities
+
+My initial prototype had everything crammed into one place: raw byte readers, text parsing, grouping heuristics, and data structures. That was fine for an afternoon experiment, but it was already getting clumsy.
+
+I carved it up into clear responsibilities:
+1. Pure data structures for individual input nodes and clustered peripheral groups.
+2. A scanner dedicated purely to reading hardware lines and clustering devices by physical port.
+3. An API boundary that shapes the hardware data into a lean representation for the UI.
+
+The UI did not need to know the raw vendor IDs, individual event node paths, or internal kernel details for five separate endpoints. It only needed three things: a unique identifier for the hardware connection (the physical port), a clean display name, and whether the device was currently active or muted. Trimming the contract down kept the bridge lightweight.
+
+### The desktop bridge
+
+For the desktop wrapper, Electron felt way too heavy for an input manager. Pulling in hundreds of megabytes of bundled Chromium just to toggle mouse nodes felt absurd.
+
+Instead, I went with `pywebview` backed by Qt. Because I run KDE Plasma, Qt is already native to my desktop. It uses the existing system engine, and directly bridges Python methods into the window's JavaScript context.
+

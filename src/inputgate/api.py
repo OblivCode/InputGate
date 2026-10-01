@@ -66,10 +66,15 @@ class InputGateApi:
 
         return [asdict(d) for d  in getFrontendDevices()]
 
-    def mute_device(self, device_id: int):
+    def toggle_mute(self, device_id: str) -> bool:
         """
-        Mutes the device with the given ID.
+        Toggles the mute state of the device with the given ID (physical port).
+        Returns the updated boolean state.
         """
-        
-        pass# TODO: Implement mute_device functionality
+        devices = getFrontendDevices()
+        for d in devices:
+            if d.id == device_id:
+                d.is_muted = not d.is_muted
+                return d.is_muted
+        return False
 
