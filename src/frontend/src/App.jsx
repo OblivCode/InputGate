@@ -1,46 +1,72 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+const API_TIMEOUT = 5000 // 5 seconds
+
+export function showError(message) {
+  const dialog = document.getElementById('error-dialog')
+  const msgEl = document.getElementById('error-dialog-message')
+  if (dialog && msgEl) {
+    msgEl.textContent = message
+    dialog.showModal()
+  } else {
+    console.error(message)
+  }
+}
+
+const api = {
+  getDevices: async () => {
+    try {
+      return await window.pywebview.api.getDevices()
+    } catch (err) {
+      showError('Failed to get devices: ' + err)
+      return []
+    }
+  },
+  toggleMute: async (device_index) => {
+    try {
+      return await window.pywebview.api.toggleMute(device_index)
+    } catch (err) {
+      showError('Failed to toggle mute state: ' + err)
+    }
+  },
+}
+
 function App() {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        // Handle both camelCase and snake_case API exports from pywebview
-        const fn = window.pywebview.api.getDevices || window.pywebview.api.get_devices
-        const list = await fn()
-        setDevices(list)
-      } catch (err) {
-        console.error('Failed to fetch devices:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
+  // Function to fetch devices from backend
+  const refreshDevices = async () => {
+    const devices = await api.getDevices()
+    setDevices(devices)
+  }
 
-    // Poll until pywebview.api is injected into the window object
-    const interval = setInterval(() => {
+  // Get devices from backend on mount
+  useEffect(() => {
+    const interval = setInterval(async () => {
       if (window.pywebview?.api) {
         clearInterval(interval)
-        fetchDevices()
+        clearTimeout(timeout)
+        await refreshDevices()
+        setLoading(false)
       }
-    }, 50)
+    }, 100)
 
-    // Fallback timeout: stop polling after 5 seconds if running outside pywebview
     const timeout = setTimeout(() => {
       clearInterval(interval)
       setLoading(false)
-    }, 5000)
+      showError('Failed to connect to backend API within timeout: ' + API_TIMEOUT + 'ms')
+    }, API_TIMEOUT)
 
-    // Cleanup timers on component unmount
     return () => {
       clearInterval(interval)
       clearTimeout(timeout)
     }
   }, [])
 
-  const [accentColor, setAccentColor] = useState('#c084fc')
+  // Accent color state and handler
+  const [accentColor, setAccentColor] = useState('#ff0000')
 
   const handleColorChange = (e) => {
     const color = e.target.value
@@ -49,22 +75,22 @@ function App() {
     document.documentElement.style.setProperty('--accent-border', color)
   }
 
-  const handleToggleMute = async (deviceId) => {
-    try {
-      const fn = window.pywebview?.api?.toggleMute || window.pywebview?.api?.toggle_mute
-      if (fn) {
-        const isMuted = await fn(deviceId)
-        setDevices((prev) =>
-          prev.map((d) => (d.id === deviceId ? { ...d, is_muted: isMuted } : d))
-        )
-      }
-    } catch (err) {
-      console.error('Failed to toggle mute state:', err)
-    }
-  }
+
 
   return (
     <div className="app-container">
+      <dialog id="error-dialog" className="error-dialog">
+        <h3>Error</h3>
+        <p id="error-dialog-message"></p>
+        <button
+          type="button"
+          className="btn-dialog-close"
+          onClick={() => document.getElementById('error-dialog')?.close()}
+        >
+          Close
+        </button>
+      </dialog>
+
       <header className="app-header">
         <h1>InputGate</h1>
         <div className="accent-control" title="Choose hover accent color">
@@ -86,15 +112,17 @@ function App() {
         )}
 
         <div className="device-list">
-          {devices.map((device) => (
+          {devices.map((device, index) => (
             <div key={device.id} className="device-card">
               <h3 className="device-name">{device.name}</h3>
               <div className="device-actions">
                 <button
                   type="button"
-                  className={`btn-toggle ${device.is_muted ? 'is-muted' : 'is-active'}`}
-                  onClick={() => handleToggleMute(device.id)}
-                >
+                  className={`btn-toggle ${device.is_muted ? 'muted' : 'unmuted'}`}
+                  onClick={async () => {
+                    await api.toggleMute(index)
+                    await refreshDevices()
+                  }}>
                   {device.is_muted ? 'Unmute' : 'Mute'}
                 </button>
               </div>

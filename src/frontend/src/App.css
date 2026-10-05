@@ -123,3 +123,52 @@
   border-color: var(--accent-border);
   color: var(--accent);
 }
+
+.btn-toggle.muted {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.error-dialog {
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 420px;
+  text-align: left;
+}
+
+.error-dialog h3 {
+  margin: 0 0 0.5rem;
+  color: #ef4444;
+  font-size: 1.1rem;
+}
+
+.error-dialog p {
+  margin: 0 0 1.25rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.error-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.btn-dialog-close {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.btn-dialog-close:hover {
+  border-color: var(--text-h);
+}
