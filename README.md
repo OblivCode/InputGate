@@ -18,7 +18,7 @@ InputGate is an open-source Linux peripheral manager that discovers input device
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Python 3.10+, `uv`, `pywebview`, `PyQt6`, `PyQt6-WebEngine`
+- **Backend**: Python 3.10+, `uv`, `pywebview`, `PySide6` (Qt WebEngine)
 - **Frontend**: React, Vite, vanilla CSS
 
 ---
@@ -65,3 +65,9 @@ InputGate/
 - [ ] Dual-connection detection: spot the same peripheral connected over multiple ports (e.g. wireless dongle and USB cable) and warn or arbitrate
 - [ ] Laptop keyboard auto-mute when an external keyboard is attached
 - [ ] Cleaning / pet lock (one-click lock for all devices)
+
+---
+
+## 📄 License
+
+MIT © [OblivCode](https://github.com/OblivCode)
