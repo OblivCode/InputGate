@@ -1,29 +1,67 @@
 # InputGate ⚡
 
-> **Smart Linux Input Arbiter & Peripheral Manager**  
-> Manages dual-mode wireless/wired peripherals, prevents input collisions, and arbitrates mice and keyboards across Wayland & X11.
+> Linux desktop utility built with React, Python, and Qt WebEngine for managing input devices.
+
+InputGate is an open-source Linux peripheral manager that discovers input devices, groups their split USB endpoints into one physical device, and lets you mute them from a desktop UI.
 
 ---
 
-## The Vision
-InputGate is an open-source Linux utility designed to solve common, frustrating peripheral conflicts:
-- Automatically arbitrating between 2.4GHz wireless dongles and USB charging cables for dual-mode mice and keyboards.
-- Silencing internal laptop keyboards when an external mechanical keyboard is attached.
-- Providing an instant "Cleaning & Pet Lock" to safely wipe down hardware without sending unintended keystrokes or clicks.
+## ✨ Features
 
-For the detailed journey, background research, and architectural trade-offs, see the [Development Story](dev-story.md).
-
----
-
-## Project Structure
-- `dev-story.md`: The developer journal capturing the origins, trade-offs, and design choices.
-- `docs/`: Technical specifications and architectural deep dives.
-- `inputgate/`: Source code (Python).
-- `tests/`: Automated unit and integration test suite.
+- **Hardware topology grouping**: Groups split USB HID endpoints (mouse pointer, macros, consumer control, system control) into one device by physical port, using `/proc/bus/input/devices`.
+- **Rootless device muting**: Silences devices at the kernel level with exclusive `EVIOCGRAB` grabs. If InputGate crashes or exits, the kernel releases the grab automatically.
+- **Native desktop UI**: React and Vite inside a PyQt6 WebEngine window via `pywebview`.
+- **One-command launch**: `uv run inputgate` starts the Vite dev server, opens the window, and cleans up the server on close.
+- **Accent colour picker**: Choose the card hover colour from the header.
 
 ---
 
-## Status
-🛠️ **Active Planning & Early Development**
+## 🛠️ Tech Stack
 
-See [`dev-story.md`](dev-story.md) for the latest progress and technical roadmap.
+- **Backend**: Python 3.10+, `uv`, `pywebview`, `PyQt6`, `PyQt6-WebEngine`
+- **Frontend**: React, Vite, vanilla CSS
+
+---
+
+## 🚀 Build & Run
+
+### Prerequisites
+
+- [`uv`](https://docs.astral.sh/uv/)
+- [Node.js](https://nodejs.org/) and npm
+- Your user in the `input` group (needed to grab devices without root)
+
+### Steps
+
+```bash
+git clone git@github.com:OblivCode/InputGate.git
+cd InputGate
+cd src/frontend && npm install && cd ../..
+uv run inputgate
+```
+
+---
+
+## 📁 Project Structure
+
+```text
+InputGate/
+├── pyproject.toml
+├── src/
+│   ├── inputgate/
+│   │   ├── app.py        # Window launcher and dev server lifecycle
+│   │   ├── api.py        # pywebview bridge (frontend <-> backend)
+│   │   ├── scanner.py    # Device discovery, filtering and port grouping
+│   │   ├── muter.py      # EVIOCGRAB grab / ungrab handling
+│   │   └── models.py     # InputDevice and InputDeviceGroup dataclasses
+│   └── frontend/         # React + Vite UI
+```
+
+---
+
+## 📝 TODO
+
+- [ ] In-focus keyboard shortcuts: dynamic number keys to quickly toggle devices
+- [ ] Dual-connection detection: spot the same peripheral connected over multiple ports (e.g. wireless dongle and USB cable) and warn or arbitrate
+- [ ] Laptop keyboard auto-mute when an external keyboard is attached
+- [ ] Cleaning / pet lock (one-click lock for all devices)
