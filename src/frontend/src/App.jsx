@@ -23,9 +23,9 @@ const api = {
       return []
     }
   },
-  toggleMute: async (device_index) => {
+  toggleMute: async (device_id) => {
     try {
-      return await window.pywebview.api.toggleMute(device_index)
+      return await window.pywebview.api.toggleMute(device_id)
     } catch (err) {
       showError('Failed to toggle mute state: ' + err)
     }
@@ -112,7 +112,7 @@ function App() {
         )}
 
         <div className="device-list">
-          {devices.map((device, index) => (
+          {devices.map((device) => (
             <div key={device.id} className="device-card">
               <h3 className="device-name">{device.name}</h3>
               <div className="device-actions">
@@ -120,7 +120,7 @@ function App() {
                   type="button"
                   className={`btn-toggle ${device.is_muted ? 'muted' : 'unmuted'}`}
                   onClick={async () => {
-                    await api.toggleMute(index)
+                    await api.toggleMute(device.id)
                     await refreshDevices()
                   }}>
                   {device.is_muted ? 'Unmute' : 'Mute'}

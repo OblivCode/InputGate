@@ -1,34 +1,35 @@
-# InputGate Architecture Specification
+# InputGate architecture
 
-## Overview
-InputGate operates as a user-space daemon and desktop interface that monitors Linux input event nodes (`/dev/input/event*`) and applies priority and silence rules without requiring root permissions.
+InputGate is a Linux desktop application. React calls the Python backend through
+pywebview; Linux discovery and exclusive input grabs stay in their existing modules.
 
-## Core Layers
-
-```mermaid
-flowchart TD
-    Kernel[Linux Kernel evdev /dev/input/event*] --> Inotify[Inotify Directory Watcher]
-    Inotify --> Manager[DeviceManager]
-    Kernel --> Node[InputDeviceNode]
-    Node --> Group[DeviceGroup - Physical Peripheral]
-    Group --> Manager
-    Manager --> Rules[RuleEngine]
-    Rules -->|Arbitration Decisions| Manager
-    Manager -->|evdev.grab / ungrab| Kernel
-    Manager --> UI[CLI & PyQt6 GUI / Tray]
+```text
+app.py → InputGateApi → DeviceManager → scanner.py / muter.py
 ```
 
-### 1. Hardware Representation Layer
-- **InputDeviceNode**: Represents an individual `/dev/input/eventX` device node.
-- **DeviceGroup**: Bundles all event nodes sharing the same physical hardware parent (e.g. mouse + consumer control + keyboard macro nodes for a single mouse).
-- **Classification**: Detects whether a peripheral is a Mouse, Keyboard, Touchpad, or Other via evdev capabilities.
+- `app.py` creates the manager, injects it into the API, and owns the window and
+  frontend development server lifecycle.
+- `api.py` exposes `getDevices()` and `toggleMute(device_id)` and serializes device
+  snapshots for the bridge. It owns no device registry or mute decisions.
+- `manager.py` owns the latest scanned groups keyed by physical port, coordinates
+  scanning and muting, and serializes those operations with a lock because bridge
+  calls may run on separate threads. Returned snapshots are immutable.
+- `scanner.py` reads `/proc/bus/input/devices`, groups nodes by physical port, and
+  filters peripherals. `models.py` holds the existing hardware dataclasses.
+- `muter.py` owns open handles and Linux `EVIOCGRAB` operations. The manager reads
+  mute state from it after each operation, including failures.
 
-### 2. State & Arbitration Layer
-- **RuleEngine**:
-  - `detect_dual_pairs()`: Finds wireless receivers and wired siblings sharing vendor/model signatures.
-  - `compute_desired_mutes()`: Evaluates active policies (Wired Priority, Wireless Priority, Laptop Exclusion, Lockout).
-- **DeviceManager**: Orchestrates scanning, hotplug lifecycle, thread-safe locking, and synchronization between desired mutes and live `evdev.grab()` states.
+The frontend sends the physical-port ID, so scan reordering cannot redirect a
+click to another device. IDs identify ports, not permanent hardware identities;
+moving a peripheral to another port changes its ID. A refresh replaces the registry,
+and toggling an unknown or removed ID raises an error through the bridge. Scanning
+is request-driven; there is no hotplug watcher or background daemon. Existing grab
+lifecycle and permission requirements remain unchanged.
 
-### 3. Presentation Layer
-- **CLI**: Rapid inspection, one-click manual toggling, and headless systemd daemon mode.
-- **GUI (PyQt6)**: Multi-tab desktop manager with system tray indicator, per-device cards, and cleaning lock countdown modal.
+## Verification
+
+Run `PYTHONPATH=src python -m unittest discover -s tests` from the repository root.
+The focused tests replace discovery and grab operations with fakes and require no
+input-device permissions or GUI installation. Run `npm run lint` and `npm run build`
+in `src/frontend` after installing its dependencies. Actual device grabbing needs
+manual verification on a Linux desktop with input-device access.
