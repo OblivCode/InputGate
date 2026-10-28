@@ -1,4 +1,4 @@
-from .models import InputDeviceGroup
+from .models import Device
 import fcntl
 from io import BufferedReader
 
@@ -9,8 +9,8 @@ EVIOCGRAB = 0x40044590
 # Maps physical_port -> list of open file handles
 _active_grabs: dict[str, list[BufferedReader]] = {}
 
-def muteDevice(device: InputDeviceGroup) -> bool:
-    port: str = device.devices[0].physical_port
+def muteDevice(device: Device) -> bool:
+    port: str = device.id
 
     # If in active grab, its already muted
     if port in _active_grabs:
@@ -18,7 +18,7 @@ def muteDevice(device: InputDeviceGroup) -> bool:
 
     handles: list[BufferedReader] = []
     try:
-        for node in device.devices:
+        for node in device.nodes:
             # Open the /dev/input/eventX device file
             f = open(f"/dev/input/{node.event_path}", "rb")
             # Issue exclusive grab (1)
@@ -44,8 +44,8 @@ def muteDevice(device: InputDeviceGroup) -> bool:
     
      
 
-def unmuteDevice(device: InputDeviceGroup) -> bool:
-    port: str = device.devices[0].physical_port
+def unmuteDevice(device: Device) -> bool:
+    port: str = device.id
 
     # If not in active grab, its already unmuted
     if port not in _active_grabs:
@@ -68,6 +68,6 @@ def unmuteDevice(device: InputDeviceGroup) -> bool:
         return False
     
 
-def isMuted(device: InputDeviceGroup) -> None:
-    port: str = device.devices[0].physical_port
+def isMuted(device: Device) -> bool:
+    port: str = device.id
     return port in _active_grabs

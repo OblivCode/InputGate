@@ -1,73 +1,96 @@
-# InputGate ⚡
+# InputGate
 
-> Linux desktop utility built with React, Python, and Qt WebEngine for managing input devices.
+InputGate is a Linux desktop utility for discovering and muting input peripherals.
+It groups event nodes by physical port and lets you mute each device from a React
+interface hosted by pywebview and PySide6.
 
-InputGate is an open-source Linux peripheral manager that discovers input devices, groups their split USB endpoints into one physical device, and lets you mute them from a desktop UI.
+## Requirements
 
----
+- Linux with `/proc/bus/input/devices` and `/dev/input/event*`.
+- Python 3.10+ and [uv](https://docs.astral.sh/uv/).
+- Node.js and npm to build the frontend or run the development server.
+- Read access to the input event nodes. This is commonly granted through the
+  `input` group, depending on the system configuration.
 
-## ✨ Features
-
-- **Hardware topology grouping**: Groups split USB HID endpoints (mouse pointer, macros, consumer control, system control) into one device by physical port, using `/proc/bus/input/devices`.
-- **Rootless device muting**: Silences devices at the kernel level with exclusive `EVIOCGRAB` grabs. If InputGate crashes or exits, the kernel releases the grab automatically.
-- **Native desktop UI**: React and Vite inside a PyQt6 WebEngine window via `pywebview`.
-- **One-command launch**: `uv run inputgate` starts the Vite dev server, opens the window, and cleans up the server on close.
-- **Accent colour picker**: Choose the card hover colour from the header.
-
----
-
-## 🛠️ Tech Stack
-
-- **Backend**: Python 3.10+, `uv`, `pywebview`, `PySide6` (Qt WebEngine)
-- **Frontend**: React, Vite, vanilla CSS
-
----
-
-## 🚀 Build & Run
-
-### Prerequisites
-
-- [`uv`](https://docs.astral.sh/uv/)
-- [Node.js](https://nodejs.org/) and npm
-- Your user in the `input` group (needed to grab devices without root)
-
-### Steps
+## Installation
 
 ```bash
-git clone git@github.com:OblivCode/InputGate.git
+git clone https://github.com/OblivCode/InputGate.git
 cd InputGate
-cd src/frontend && npm install && cd ../..
+uv sync
+cd src/frontend
+npm install
+npm run build
+cd ../..
+```
+
+## Usage
+
+Start the desktop application with the built frontend:
+
+```bash
 uv run inputgate
 ```
 
----
+Mute or unmute a peripheral using its device card. Each action applies to all
+of that peripheral's grouped event nodes.
 
-## 📁 Project Structure
+## Behaviour
 
-```text
-InputGate/
-├── pyproject.toml
-├── src/
-│   ├── inputgate/
-│   │   ├── app.py        # Window launcher and dev server lifecycle
-│   │   ├── api.py        # pywebview bridge (frontend <-> backend)
-│   │   ├── scanner.py    # Device discovery, filtering and port grouping
-│   │   ├── muter.py      # EVIOCGRAB grab / ungrab handling
-│   │   └── models.py     # InputDevice and InputDeviceGroup dataclasses
-│   └── frontend/         # React + Vite UI
+Discovery reads `/proc/bus/input/devices`, groups nodes by physical port, and
+filters peripherals by name. Vendor and name matches also receive a group ID.
+
+Muting uses Linux `EVIOCGRAB` to exclusively grab a device's event nodes.
+Unmuting releases those grabs. Closing the process releases its open handles.
+
+Device IDs represent physical ports. Scan ordering does not change them, but
+moving a device to another port does. Discovery runs when the UI requests devices;
+there is no background hotplug watcher.
+
+## Verification and limitations
+
+Check that the expected peripherals appear and that mute and unmute affect the
+intended device. Actual grabbing requires input-device access. Automated tests
+are deferred.
+
+Discovery currently depends on physical-port data and peripheral names. Matching
+vendor and name groups does not apply automatic priority rules. Muting is manual;
+there is no recovery timer or cleaning lock yet.
+
+See [architecture](docs/architecture.md) for module responsibilities and design
+constraints.
+
+## Development
+
+Run with the Vite development server:
+
+```bash
+uv run inputgate --dev
 ```
 
----
+`startDev()` starts Vite and stops it when the window closes. `start()` loads
+`src/frontend/dist/index.html` without starting Vite. Rebuild the frontend after
+changes when using the normal launch command. These commands run from a source
+checkout; standalone distribution is not configured.
 
-## 📝 TODO
+Frontend checks are available in `src/frontend`:
 
-- [ ] In-focus keyboard shortcuts: dynamic number keys to quickly toggle devices
-- [ ] Dual-connection detection: spot the same peripheral connected over multiple ports (e.g. wireless dongle and USB cable) and warn or arbitrate
-- [ ] Laptop keyboard auto-mute when an external keyboard is attached
-- [ ] Cleaning / pet lock (one-click lock for all devices)
+```bash
+npm run lint
+npm run build
+```
 
----
+Functions use `fooBar()`, variables use `foo_bar`, and classes use `FooBar`.
+Internal helpers use a leading underscore. Keep comments concise and explain
+meaning, assumptions, or non-obvious behaviour.
 
-## 📄 License
+## Roadmap
 
-MIT © [OblivCode](https://github.com/OblivCode)
+- Keyboard shortcuts for device toggles.
+- Dual-connection detection and priority handling.
+- Laptop keyboard muting when an external keyboard is connected.
+- A timed cleaning lock.
+
+## License
+
+[MIT](LICENSE) © OblivCode.

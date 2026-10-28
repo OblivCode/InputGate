@@ -27,3 +27,5 @@ yarn-error.log*
 
 # Local scratchpad & notes
 scratch/
+
+tests/

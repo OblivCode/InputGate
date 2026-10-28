@@ -1,8 +1,8 @@
-from .models import InputDevice, InputDeviceGroup
+from .models import DeviceNode, Device
 
 PERIPHERAL_KEYWORDS = ["mouse", "keyboard", "touchpad"]
 
-def getFieldFromDeviceBlock(block: str, field_name: str, field_prefix: str = None) -> str:
+def _getFieldFromDeviceBlock(block: str, field_name: str, field_prefix: str = None) -> str:
     if not field_name in block:
         return None
 
@@ -12,8 +12,8 @@ def getFieldFromDeviceBlock(block: str, field_name: str, field_prefix: str = Non
 
     field = block[field_index_start:field_index_end].lstrip("=")
 
-   
-   # If quoted then return entire quoted string 
+
+   # If quoted then return entire quoted string
     if "\"" in field:
         field_index_end = field.index("\"", 1)
         field = field[:field_index_end + 1]
@@ -25,7 +25,7 @@ def getFieldFromDeviceBlock(block: str, field_name: str, field_prefix: str = Non
                 if f.startswith(field_prefix):
                     field = f
                     break
-            
+
         else: # If no prefix is provided, just take the first field
             field = field[0] if field else None
 
@@ -37,10 +37,10 @@ def getFieldFromDeviceBlock(block: str, field_name: str, field_prefix: str = Non
     field = field.strip("\"")
     return field
 
-def hasSamePhysicalPort(*devices: InputDevice) -> bool:
+def _hasSamePhysicalPort(*devices: DeviceNode) -> bool:
     if len(devices) < 2:
         return True
-    
+
     # Check if all ports are the same
     for i in range(1, len(devices)):
         if devices[i].physical_port != devices[0].physical_port:
@@ -48,24 +48,22 @@ def hasSamePhysicalPort(*devices: InputDevice) -> bool:
     return True
 #
 
-def scanInputDevices() -> list[InputDevice]:
-    """
-    Scans the system for available input devices.
-    """
+def _scanDeviceNodes() -> list[DeviceNode]:
+    """Scan Linux input event nodes."""
     # Read device blocks from /proc/bus/input/devices
     with open("/proc/bus/input/devices", "r") as f:
         # Each device block is separated by an empty line
         device_blocks: list[str] = f.read().split("\n\n")
 
-    # Parse each device block to 'DeviceInput' objects
-    input_devices: list[InputDevice] = []
+    # Parse each device block into a node
+    input_devices: list[DeviceNode] = []
     for block in device_blocks:
         # Skip empty blocks
         if not block.strip():
             continue
 
         # Get the physical port
-        physical_port: str = getFieldFromDeviceBlock(block, "Phys")
+        physical_port: str = _getFieldFromDeviceBlock(block, "Phys")
         # Filter for input devices by requiring that the physical port contains "/input"
         if not physical_port or not "/input" in physical_port:
             continue
@@ -73,57 +71,53 @@ def scanInputDevices() -> list[InputDevice]:
         physical_port = physical_port.rsplit("/input")[0]
 
         # Get the vendor ID
-        vendor: str =  getFieldFromDeviceBlock(block, "Vendor")
+        vendor: str =  _getFieldFromDeviceBlock(block, "Vendor")
         # Filter out non-vendor and internal devices (Vendor 0000)
         if not vendor or vendor == "0000":
             continue
 
         # Get the rest
-        product: str = getFieldFromDeviceBlock(block, "Product")   
-        name: str = getFieldFromDeviceBlock(block, "Name")
-        event_path: str = getFieldFromDeviceBlock(block, "Handlers", "event")
+        product: str = _getFieldFromDeviceBlock(block, "Product")
+        name: str = _getFieldFromDeviceBlock(block, "Name")
+        event_path: str = _getFieldFromDeviceBlock(block, "Handlers", "event")
 
         # If name, phys and event_node are found, add them to the devices list
         if name and physical_port and event_path:
-            input_devices.append(InputDevice(name=name, event_path=event_path, physical_port=physical_port, vendor=vendor, product=product))
+            input_devices.append(DeviceNode(name=name, event_path=event_path, physical_port=physical_port, vendor=vendor, product=product))
 
     return input_devices
 
-def groupDevices(devices: list[InputDevice]) -> list[InputDeviceGroup]:
-    """
-    Groups an input device alongside other devices that share the same physical port.
-    """
-    group: dict[str, InputDeviceGroup] = {}
+def _groupDevices(devices: list[DeviceNode]) -> list[Device]:
+    """Group nodes by physical port."""
+    group: dict[str, Device] = {}
 
-    def append(device: InputDevice):
+    def _append(device: DeviceNode):
         if device.physical_port in group:
             # Add to existing group
-            group[device.physical_port].devices.append(device)
+            group[device.physical_port].nodes.append(device)
             # Update the group name if the new device has a shorter name
             if len(device.name) < len(group[device.physical_port].name):
                 group[device.physical_port].name = device.name
         else:
             # Create new group
-            group[device.physical_port] = InputDeviceGroup(name=device.name, devices=[device]) 
+            group[device.physical_port] = Device(id=device.physical_port, name=device.name, nodes=[device])
 
     for d in devices:
-        append(d)
-    
+        _append(d)
+
     return list(group.values())
 
 
 
 
-def filterDevices(groups: list[InputDeviceGroup]) -> list[InputDeviceGroup]:
-    """
-    Filters device groups to include only input peripherals.
-    """
-    filtered: list[InputDeviceGroup] = []
+def _filterDevices(groups: list[Device]) -> list[Device]:
+    """Keep input peripherals."""
+    filtered: list[Device] = []
 
     for group in groups:
         # Check if any device in the group matches peripheral keywords
         is_peripheral = False
-        for device in group.devices:
+        for device in group.nodes:
             name_lower = device.name.lower()
             for keyword in PERIPHERAL_KEYWORDS:
                 if keyword in name_lower:
@@ -138,17 +132,43 @@ def filterDevices(groups: list[InputDeviceGroup]) -> list[InputDeviceGroup]:
 
     return filtered
 
+def _splitDevicesByMatch(devices: list[Device]) -> list[Device]:
+    """Assign group IDs using vendor and name matches."""
+    groups: list[str] = [] # vendor + name
+    for i in range(0, len(devices)):
+        d1 = devices[i]
+        d_name = d1.nodes[0].vendor + d1.name
+        matched = False
 
-def getDevices() -> list[InputDeviceGroup]:
-    """
-    Returns a list of all input devices grouped by physical port.
-    """
+        for j  in range(0, len(groups)):
+            group = groups[j]
+            if d_name in group or group in d_name:
+                matched = True
+                # Assign device to group
+                d1.group_id = j
+
+                # SHorter name should act as matching substring
+                if len(d_name) < len(group):
+                    groups[j] = d_name
+
+                break
+        # If no match was found, create a new group
+        if not matched:
+            groups.append(d_name)
+            d1.group_id = len(groups) - 1
+    return devices
+
+
+
+
+def getDevices() -> list[Device]:
+    """Return peripherals grouped by physical port."""
     # Scan for input devices
-    all_devices: list[InputDevice] = scanInputDevices()
+    all_devices: list[DeviceNode] = _scanDeviceNodes()
     # Group input devices by physical port
-    devices: list[InputDeviceGroup] = groupDevices(all_devices)
+    devices: list[Device] = _groupDevices(all_devices)
     # Filter input device groups for peripherals
-    filtered_devices: list[InputDeviceGroup] = filterDevices(devices)
-    return filtered_devices
-
-    
+    filtered_devices: list[Device] = _filterDevices(devices)
+    # Split devices into lists by matching vendor IDs and names
+    matched_devices = _splitDevicesByMatch(filtered_devices)
+    return matched_devices
