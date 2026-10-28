@@ -51,11 +51,17 @@ InputGate/
 │   ├── inputgate/
 │   │   ├── app.py        # Window launcher and dev server lifecycle
 │   │   ├── api.py        # pywebview bridge (frontend <-> backend)
+│   │   ├── manager.py    # Device registry and scan / mute coordination
 │   │   ├── scanner.py    # Device discovery, filtering and port grouping
 │   │   ├── muter.py      # EVIOCGRAB grab / ungrab handling
 │   │   └── models.py     # InputDevice and InputDeviceGroup dataclasses
 │   └── frontend/         # React + Vite UI
 ```
+
+---
+
+See [architecture and verification](docs/architecture.md) for backend responsibilities
+and focused test instructions.
 
 ---
 

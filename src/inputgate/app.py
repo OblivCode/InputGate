@@ -1,6 +1,7 @@
 import webview, atexit, subprocess, time, socket, os, signal
 from pathlib import Path
 from .api import InputGateApi
+from .manager import DeviceManager
 
 def terminateProcess(process):
     os.killpg(process.pid, signal.SIGTERM)
@@ -35,7 +36,8 @@ def startDev(port=5173):
         raise RuntimeError(f"Port {port} did not open within {max_sec} seconds.")
     
     # open webview
-    api = InputGateApi()
+    manager = DeviceManager()
+    api = InputGateApi(manager)
     window = webview.create_window(
         title="InputGate",
         url="http://localhost:"+str(port),
